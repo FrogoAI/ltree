@@ -1,0 +1,197 @@
+version: "2"
+run:
+  tests: true
+linters:
+  default: none
+  enable:
+    - bodyclose
+    - dogsled
+    - dupl
+    - errcheck
+    - forbidigo
+    - goconst
+    - gocritic
+    - gocyclo
+    - gosec
+    - govet
+    - ineffassign
+    - ireturn
+    - lll
+    - misspell
+    - mnd
+    - revive
+    - staticcheck
+    - unconvert
+    - unused
+    - whitespace
+    - wsl_v5
+  settings:
+    forbidigo:
+      forbid:
+        - pattern: ^print.*$
+        - pkg: github.com/golang/mock/gomock
+        - pattern: ^fmt\.Print.*$
+          msg: Do not commit print statements.
+        - pattern: ^log\.Print.*$
+      exclude-godoc-examples: false
+      analyze-types: true
+    ireturn:
+      allow:
+        - anon
+        - error
+        - empty
+        - stdlib
+        - generic
+        - github.com/InsideGallery/core/queue/nats.Pool
+        - github.com/InsideGallery/core/db/aerospike.Namespace
+        - github.com/InsideGallery/core/fastlog/metrics.Chart
+        - github.com/InsideGallery/core/db/mongodb.Client
+        - github.com/InsideGallery/core/queue/nats/client.Logger
+        - github.com/InsideGallery/core/utils/phone.Decoder
+        - github.com/InsideGallery/core/queue/nats/consumer.Client
+        - github.com/neo4j/neo4j-go-driver/v5/neo4j/auth.TokenManager
+        - github.com/aerospike/aerospike-client-go/v7.Error
+        - github.com/aerospike/aerospike-client-go/v7.Value
+        - github.com/aerospike/aerospike-client-go/v8.Error
+        - github.com/aerospike/aerospike-client-go/v8.Value
+        - gorgonia.org/gorgonia.Value
+        - go.opentelemetry.io/otel/trace.Span
+        - go.opentelemetry.io/otel/metric.Meter
+        - github.com/nats-io/nats.go.JetStreamContext
+        - golang.org/x/text/transform.Transformer
+    lll:
+      line-length: 120
+      tab-width: 1
+    wsl:
+      strict-append: false
+      allow-assign-and-call: true
+      allow-assign-and-anything: true
+      force-case-trailing-whitespace: 0
+      allow-cuddle-declarations: true
+      allow-cuddle-with-calls:
+        - Lock
+        - RLock
+      allow-cuddle-with-rhs:
+        - Unlock
+        - RUnlock
+      force-err-cuddling: false
+      error-variable-names:
+        - err
+      force-short-decl-cuddling: false
+    gosec:
+      excludes:
+        - G109
+        - G115
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    rules:
+      - linters:
+          - gosec
+        path: utils/strings.go
+        text: 'G115: integer overflow conversion int -> uint32'
+      - linters:
+          - gosec
+        path: utils/strings.go
+        text: 'G115: integer overflow conversion uint64 -> int64'
+      - linters:
+          - revive
+        text: 'var-naming: avoid meaningless package names'
+      - linters:
+          - gosec
+        path: dataconv/binary.go
+        text: 'G115: integer overflow conversion int -> uint32'
+      - linters:
+          - gosec
+        path: dataconv/binary.go
+        text: 'G115: integer overflow conversion int -> uint16'
+      - linters:
+          - gosec
+        path: dataconv/binary.go
+        text: 'G115: integer overflow conversion uint32 -> int32'
+      - linters:
+          - gosec
+        path: dataconv/binary.go
+        text: 'G115: integer overflow conversion uint64 -> int64'
+      - linters:
+          - gosec
+        path: dataconv/binary.go
+        text: 'G115: integer overflow conversion uint16 -> int16'
+      - linters:
+          - gosec
+        path: memory/sortedset/sortedset.go
+        text: 'G115: integer overflow conversion uint64 -> int'
+      - linters:
+          - gosec
+        path: queue/nats/proxy/balancer.go
+        text: 'G115: integer overflow conversion int -> uint32'
+      - linters:
+          - gosec
+        path: db/aerospike/aerospike.go
+        text: 'G115: integer overflow conversion uint64 -> int64'
+      - linters:
+          - forbidigo
+        path: memory/fuzzysearch/fuzzy_test.go
+      - linters:
+          - bodyclose
+          - dogsled
+          - dupl
+          - errcheck
+          - lll
+          - mnd
+          - wsl
+        path: _test\.go
+      - linters:
+          - bodyclose
+          - dogsled
+          - dupl
+          - errcheck
+          - lll
+          - mnd
+          - wsl
+        path: _easyjson\.go
+      - linters:
+          - bodyclose
+          - dogsled
+          - errcheck
+          - mnd
+        path: _example\.go
+      - linters:
+          - bodyclose
+          - dogsled
+          - errcheck
+          - mnd
+        path: _mock\.go
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
+  new-from-rev: ""
+formatters:
+  enable:
+    - gci
+    - gofmt
+    - gofumpt
+    - goimports
+  settings:
+    gci:
+      sections:
+        - standard
+        - blank
+        - dot
+        - default
+        - prefix(github.com/InsideGallery/core)
+      custom-order: true
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
