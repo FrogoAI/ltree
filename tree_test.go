@@ -4,11 +4,45 @@ import (
 	"context"
 	"errors"
 	"strconv"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/FrogoAI/ltree/set"
 )
+
+type SafeGenericDataSet[K comparable] struct {
+	set set.GenericDataSet[K]
+	mu  sync.Mutex
+}
+
+func NewSet[K comparable]() *SafeGenericDataSet[K] {
+	return &SafeGenericDataSet[K]{
+		set: set.NewGenericDataSet[K](),
+	}
+}
+
+func (s *SafeGenericDataSet[K]) Add(k K) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.set == nil {
+		s.set = set.NewGenericDataSet[K]()
+	}
+
+	s.set.Add(k)
+}
+
+func (s *SafeGenericDataSet[K]) Contains(k K) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.set == nil {
+		s.set = set.NewGenericDataSet[K]()
+	}
+
+	return s.set.Contains(k)
+}
 
 func TestTree(t *testing.T) {
 	tr := NewTreeLayer[string, any]()
@@ -29,7 +63,7 @@ func TestTree(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	executed := set.NewGenericDataSet[string]()
+	executed := NewSet[string]()
 
 	tr.Execute(context.Background(), func(_ context.Context, key string, _ any) {
 		// just measure go one-by-one without calculation
