@@ -60,7 +60,7 @@ func TestTreeCircuitDependencies(t *testing.T) {
 func TestEmptyTree(t *testing.T) {
 	tr := NewTreeLayer[string, any]()
 	err := tr.Add()
-	if err == nil {
+	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)
 	}
 
