@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/FrogoAI/ltree/set"
+	"github.com/FrogoAI/set"
 )
 
 type SafeGenericDataSet[K comparable] struct {
