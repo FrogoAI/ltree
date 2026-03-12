@@ -1,0 +1,18 @@
+goos: linux
+goarch: amd64
+pkg: github.com/FrogoAI/ltree
+cpu: Intel(R) Core(TM) Ultra 7 255H
+BenchmarkTree-16          	  592774	      2020 ns/op	    1728 B/op	      36 allocs/op
+BenchmarkTree-16          	  720043	      1782 ns/op	    1728 B/op	      36 allocs/op
+BenchmarkTree-16          	  615082	      1709 ns/op	    1728 B/op	      36 allocs/op
+BenchmarkTree-16          	  837314	      1738 ns/op	    1728 B/op	      36 allocs/op
+BenchmarkTree-16          	  737077	      1818 ns/op	    1728 B/op	      36 allocs/op
+BenchmarkTree-16          	  671296	      1756 ns/op	    1728 B/op	      36 allocs/op
+BenchmarkTree4by100-16    	   74210	     15153 ns/op	   11424 B/op	     131 allocs/op
+BenchmarkTree4by100-16    	   80349	     15377 ns/op	   11426 B/op	     131 allocs/op
+BenchmarkTree4by100-16    	   70357	     14849 ns/op	   11424 B/op	     131 allocs/op
+BenchmarkTree4by100-16    	   83480	     15138 ns/op	   11424 B/op	     131 allocs/op
+BenchmarkTree4by100-16    	   77216	     15561 ns/op	   11423 B/op	     131 allocs/op
+BenchmarkTree4by100-16    	   77791	     15031 ns/op	   11423 B/op	     131 allocs/op
+PASS
+ok  	github.com/FrogoAI/ltree	16.299s
