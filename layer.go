@@ -89,6 +89,7 @@ func (t *TreeLayer[K, V]) visit(node *Node[K, V]) error {
 			if err := t.visit(parentNode); err != nil {
 				return err
 			}
+
 			node.AddParent(parentNode)
 		}
 	}
@@ -180,9 +181,12 @@ func (t *TreeLayer[K, V]) Execute(ctx context.Context, executor func(ctx context
 			if !node.value.IsAsync() || node.value.Skip() {
 				continue
 			}
+
 			wg.Add(1)
+
 			go func(n *Node[K, V]) {
 				defer wg.Done()
+
 				select {
 				case <-ctx.Done():
 				default:
@@ -195,6 +199,7 @@ func (t *TreeLayer[K, V]) Execute(ctx context.Context, executor func(ctx context
 			if node.value.IsAsync() || node.value.Skip() {
 				continue
 			}
+
 			select {
 			case <-ctx.Done():
 				wg.Wait()

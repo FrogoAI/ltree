@@ -55,3 +55,4 @@ make ci                # lint + coverage
 
 ## Rules
 1. **Use `#AI-assisted` in commit messages**.
+2. **Always run linter, tests, and benchmarks after every change** — `make lint && make test && make bench`. Fix all issues before committing. Never push code that fails lint or tests.
