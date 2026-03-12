@@ -39,9 +39,10 @@ func (t *TreeLayer[K, V]) Add(entries ...Executor[K, V]) error {
 	for _, entry := range entries {
 		node := t.dictionary[entry.Key()]
 
-		err := t.visit(entry.Key(), node)
-		if err != nil {
-			return err
+		if node.state == stateUnvisited {
+			if err := t.visit(node); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -68,28 +69,31 @@ func (t *TreeLayer[K, V]) Add(entries ...Executor[K, V]) error {
 	return nil
 }
 
-func (t *TreeLayer[K, V]) visit(key K, node *Node[K, V]) error {
+func (t *TreeLayer[K, V]) visit(node *Node[K, V]) error {
+	node.state = stateVisiting
+
 	for _, need := range node.value.DependsOn() {
 		parentNode, ok := t.dictionary[need]
 		if !ok {
 			continue
 		}
 
-		if parentNode.HasParent(node) || parentNode.value.Key() == key {
-			return fmt.Errorf("%w: with parent %v", ErrCircuitDependency, need)
-		}
-
-		if !parentNode.IsVisited() {
-			err := t.visit(key, parentNode)
-			if err != nil {
+		switch parentNode.state {
+		case stateVisiting:
+			return fmt.Errorf("%w: %v and %v", ErrCircuitDependency, node.value.Key(), need)
+		case stateVisited:
+			if !node.HasParent(parentNode) {
+				node.AddParent(parentNode)
+			}
+		default:
+			if err := t.visit(parentNode); err != nil {
 				return err
 			}
+			node.AddParent(parentNode)
 		}
-
-		node.AddParent(parentNode)
 	}
 
-	node.SetVisited(true)
+	node.state = stateVisited
 
 	return nil
 }
@@ -125,7 +129,7 @@ func (t *TreeLayer[K, V]) SyncCount(layer int) int {
 	return l.SyncCount
 }
 
-func (t *TreeLayer[K, V]) Retrieve(layer int) (async chan *Node[K, V], sync chan *Node[K, V]) {
+func (t *TreeLayer[K, V]) Retrieve(layer int) (async chan *Node[K, V], syncCh chan *Node[K, V]) {
 	t.mu.RLock()
 	defer t.mu.RUnlock()
 
@@ -134,89 +138,69 @@ func (t *TreeLayer[K, V]) Retrieve(layer int) (async chan *Node[K, V], sync chan
 		return nil, nil
 	}
 
-	count := t.layers[layer].AsyncCount
-	async = make(chan *Node[K, V], count)             // size of buffer equal async elements
-	sync = make(chan *Node[K, V], len(l.Nodes)-count) // size of buffer equal all other elements
+	count := l.AsyncCount
+	async = make(chan *Node[K, V], count)
+	syncCh = make(chan *Node[K, V], len(l.Nodes)-count)
+
+	nodes := l.Nodes
 
 	go func() {
-		for _, node := range t.layers[layer].Nodes {
+		for _, node := range nodes {
 			if node.value.IsAsync() {
 				async <- node
 			} else {
-				sync <- node
+				syncCh <- node
 			}
 		}
 
 		close(async)
-		close(sync)
+		close(syncCh)
 	}()
 
-	return async, sync
+	return async, syncCh
 }
 
 func (t *TreeLayer[K, V]) Execute(ctx context.Context, executor func(ctx context.Context, k K, n V)) {
-	count := t.Layers()
+	if executor == nil {
+		return
+	}
 
-	for i := 0; i <= count; i++ {
-		asyncCh, syncCh := t.Retrieve(i)
-		size := t.AsyncCount(i)
-		syncSize := t.SyncCount(i)
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+
+	for i := 0; i <= t.maxLayer; i++ {
+		layer, ok := t.layers[i]
+		if !ok {
+			continue
+		}
 
 		var wg sync.WaitGroup
 
-		if syncSize > 0 {
+		for _, node := range layer.Nodes {
+			if !node.value.IsAsync() || node.value.Skip() {
+				continue
+			}
 			wg.Add(1)
-
-			go func() {
+			go func(n *Node[K, V]) {
 				defer wg.Done()
-
-				for {
-					select {
-					case n, ok := <-syncCh:
-						if !ok {
-							return
-						}
-
-						if n.value.Skip() {
-							continue
-						}
-
-						if executor != nil {
-							executor(ctx, n.value.Key(), n.value.Value())
-						}
-					case <-ctx.Done():
-						return
-					}
+				select {
+				case <-ctx.Done():
+				default:
+					executor(ctx, n.value.Key(), n.value.Value())
 				}
-			}()
+			}(node)
 		}
 
-		if size > 0 {
-			wg.Add(size)
-
-			for i := 0; i < size; i++ {
-				go func() {
-					defer wg.Done()
-
-					for {
-						select {
-						case n, ok := <-asyncCh:
-							if !ok {
-								return
-							}
-
-							if n.value.Skip() {
-								continue
-							}
-
-							if executor != nil {
-								executor(ctx, n.value.Key(), n.value.Value())
-							}
-						case <-ctx.Done():
-							return
-						}
-					}
-				}()
+		for _, node := range layer.Nodes {
+			if node.value.IsAsync() || node.value.Skip() {
+				continue
+			}
+			select {
+			case <-ctx.Done():
+				wg.Wait()
+				return
+			default:
+				executor(ctx, node.value.Key(), node.value.Value())
 			}
 		}
 
@@ -267,15 +251,9 @@ func (t *TreeLayer[K, V]) GetNodeDependencies(key K) []K {
 		return nil
 	}
 
-	// Use a map to ensure uniqueness
-	uniqueDeps := make(map[K]struct{})
+	deps := make([]K, 0, len(node.parent))
 	for _, parent := range node.parent {
-		uniqueDeps[parent.value.Key()] = struct{}{}
-	}
-
-	deps := make([]K, 0, len(uniqueDeps))
-	for dep := range uniqueDeps {
-		deps = append(deps, dep)
+		deps = append(deps, parent.value.Key())
 	}
 
 	return deps

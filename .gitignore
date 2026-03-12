@@ -24,6 +24,9 @@ profile.cov
 go.work
 go.work.sum
 
+# Benchmark results (current only; baseline is tracked)
+benchmarks/current.txt
+
 # env file
 .env
 
