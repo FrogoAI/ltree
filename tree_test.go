@@ -23,19 +23,23 @@ func NewSafeSet[K comparable]() *SafeSet[K] {
 func (s *SafeSet[K]) Add(k K) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+
 	s.data[k] = struct{}{}
 }
 
 func (s *SafeSet[K]) Contains(k K) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+
 	_, ok := s.data[k]
+
 	return ok
 }
 
 func (s *SafeSet[K]) Len() int {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+
 	return len(s.data)
 }
 
@@ -145,12 +149,14 @@ func TestTreeExecution(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tr := NewTreeLayer[string, any]()
+
 			err := tr.Add(tt.entries...)
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
 
 			executed := NewSafeSet[string]()
+
 			tr.Execute(context.Background(), func(_ context.Context, key string, _ any) {
 				executed.Add(key)
 			})
@@ -160,6 +166,7 @@ func TestTreeExecution(t *testing.T) {
 					t.Errorf("expected %q to be executed", key)
 				}
 			}
+
 			for _, key := range tt.notExpected {
 				if executed.Contains(key) {
 					t.Errorf("expected %q NOT to be executed", key)
@@ -220,6 +227,7 @@ func TestTreeCircularDependencies(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tr := NewTreeLayer[string, any]()
+
 			err := tr.Add(tt.entries...)
 			if !errors.Is(err, ErrCircuitDependency) {
 				t.Fatalf("expected ErrCircuitDependency, got: %v", err)
@@ -271,6 +279,7 @@ func TestTreeLayerOrdering(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tr := NewTreeLayer[string, any]()
+
 			err := tr.Add(tt.entries...)
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
@@ -291,6 +300,7 @@ func TestTreeLayerOrdering(t *testing.T) {
 
 func TestTreeDependencyOrder(t *testing.T) {
 	tr := NewTreeLayer[string, any]()
+
 	err := tr.Add(
 		NewEntry[string, any]("a", "v", nil, false, nil),
 		NewEntry[string, any]("b", "v", []string{"a"}, false, nil),
@@ -301,11 +311,14 @@ func TestTreeDependencyOrder(t *testing.T) {
 	}
 
 	var mu sync.Mutex
+
 	order := make([]string, 0, 3)
 
 	tr.Execute(context.Background(), func(_ context.Context, key string, _ any) {
 		mu.Lock()
+
 		order = append(order, key)
+
 		mu.Unlock()
 	})
 
@@ -319,12 +332,14 @@ func TestTreeDependencyOrder(t *testing.T) {
 				return i
 			}
 		}
+
 		return -1
 	}
 
 	if indexOf("a") > indexOf("b") {
 		t.Error("a must execute before b")
 	}
+
 	if indexOf("b") > indexOf("c") {
 		t.Error("b must execute before c")
 	}
@@ -342,6 +357,7 @@ func TestTreeContextCancellation(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tr := NewTreeLayer[string, any]()
+
 			err := tr.Add(
 				NewEntry[string, any]("a", "v", nil, false, nil),
 				NewEntry[string, any]("b", "v", []string{"a"}, false, nil),
@@ -359,13 +375,17 @@ func TestTreeContextCancellation(t *testing.T) {
 			}
 
 			var count atomic.Int64
+
 			tr.Execute(ctx, func(_ context.Context, _ string, _ any) {
 				if tt.cancelWhen == "during" {
 					cancel()
 				}
+
 				count.Add(1)
+
 				time.Sleep(5 * time.Millisecond)
 			})
+
 			cancel() // ensure cleanup
 
 			if tt.cancelWhen == "before" && count.Load() > 0 {
@@ -389,6 +409,8 @@ func TestEmptyTree(t *testing.T) {
 }
 
 func TestExecuteNilExecutor(t *testing.T) {
+	t.Helper()
+
 	tr := NewTreeLayer[string, any]()
 	_ = tr.Add(NewEntry[string, any]("a", "v", nil, false, nil))
 
@@ -398,6 +420,7 @@ func TestExecuteNilExecutor(t *testing.T) {
 
 func TestTreeQueryMethods(t *testing.T) {
 	tr := NewTreeLayer[string, any]()
+
 	err := tr.Add(
 		NewEntry[string, any]("root", "v", nil, true, nil),
 		NewEntry[string, any]("child1", "v", []string{"root"}, false, nil),
@@ -424,6 +447,7 @@ func TestTreeQueryMethods(t *testing.T) {
 		if got := tr.AsyncCount(0); got != 1 {
 			t.Errorf("AsyncCount(0) = %d, want 1", got)
 		}
+
 		if got := tr.AsyncCount(99); got != 0 {
 			t.Errorf("AsyncCount(99) = %d, want 0", got)
 		}
@@ -433,6 +457,7 @@ func TestTreeQueryMethods(t *testing.T) {
 		if got := tr.SyncCount(1); got != 1 {
 			t.Errorf("SyncCount(1) = %d, want 1", got)
 		}
+
 		if got := tr.SyncCount(99); got != 0 {
 			t.Errorf("SyncCount(99) = %d, want 0", got)
 		}
@@ -442,9 +467,11 @@ func TestTreeQueryMethods(t *testing.T) {
 		if got := tr.GetNodesInLayer(0); got != 1 {
 			t.Errorf("GetNodesInLayer(0) = %d, want 1", got)
 		}
+
 		if got := tr.GetNodesInLayer(1); got != 2 {
 			t.Errorf("GetNodesInLayer(1) = %d, want 2", got)
 		}
+
 		if got := tr.GetNodesInLayer(99); got != 0 {
 			t.Errorf("GetNodesInLayer(99) = %d, want 0", got)
 		}
@@ -479,6 +506,7 @@ func TestTreeQueryMethods(t *testing.T) {
 		if pretty == "" {
 			t.Error("GetPretty() returned empty string")
 		}
+
 		if len(pretty) < 20 {
 			t.Errorf("GetPretty() too short: %q", pretty)
 		}
@@ -526,6 +554,7 @@ func TestRetrieve(t *testing.T) {
 				if asyncCh != nil || syncCh != nil {
 					t.Fatal("expected nil channels")
 				}
+
 				return
 			}
 
@@ -533,6 +562,7 @@ func TestRetrieve(t *testing.T) {
 			for range asyncCh {
 				asyncCount++
 			}
+
 			syncCount := 0
 			for range syncCh {
 				syncCount++
@@ -541,6 +571,7 @@ func TestRetrieve(t *testing.T) {
 			if asyncCount != tt.wantAsync {
 				t.Errorf("async count = %d, want %d", asyncCount, tt.wantAsync)
 			}
+
 			if syncCount != tt.wantSync {
 				t.Errorf("sync count = %d, want %d", syncCount, tt.wantSync)
 			}
@@ -550,6 +581,7 @@ func TestRetrieve(t *testing.T) {
 
 func TestIntKeys(t *testing.T) {
 	tr := NewTreeLayer[int, string]()
+
 	err := tr.Add(
 		NewEntry[int, string](1, "first", nil, false, nil),
 		NewEntry[int, string](2, "second", []int{1}, true, nil),
@@ -560,6 +592,7 @@ func TestIntKeys(t *testing.T) {
 	}
 
 	executed := NewSafeSet[int]()
+
 	tr.Execute(context.Background(), func(_ context.Context, key int, _ string) {
 		executed.Add(key)
 	})
@@ -571,6 +604,7 @@ func TestIntKeys(t *testing.T) {
 
 func TestDuplicateDependency(t *testing.T) {
 	tr := NewTreeLayer[string, any]()
+
 	err := tr.Add(
 		NewEntry[string, any]("parent", "v", nil, false, nil),
 		NewEntry[string, any]("child", "v", []string{"parent", "parent"}, false, nil),
@@ -598,19 +632,25 @@ func TestConcurrentExecute(t *testing.T) {
 	)
 
 	var wg sync.WaitGroup
+
 	for i := 0; i < 100; i++ {
 		wg.Add(1)
+
 		go func() {
 			defer wg.Done()
+
 			var count atomic.Int64
+
 			tr.Execute(context.Background(), func(_ context.Context, _ string, _ any) {
 				count.Add(1)
 			})
+
 			if count.Load() != 3 {
 				t.Errorf("expected 3 executions, got %d", count.Load())
 			}
 		}()
 	}
+
 	wg.Wait()
 }
 
@@ -637,6 +677,7 @@ func TestMultipleAddCalls(t *testing.T) {
 	}
 
 	executed := NewSafeSet[string]()
+
 	tr.Execute(context.Background(), func(_ context.Context, key string, _ any) {
 		executed.Add(key)
 	})
@@ -666,6 +707,7 @@ func TestGetPrettyContent(t *testing.T) {
 
 func TestValuePassthrough(t *testing.T) {
 	type payload struct{ data int }
+
 	tr := NewTreeLayer[string, payload]()
 	_ = tr.Add(
 		NewEntry[string, payload]("a", payload{42}, nil, false, nil),
@@ -673,6 +715,7 @@ func TestValuePassthrough(t *testing.T) {
 	)
 
 	values := NewSafeSet[int]()
+
 	tr.Execute(context.Background(), func(_ context.Context, _ string, v payload) {
 		values.Add(v.data)
 	})
@@ -686,6 +729,7 @@ func TestLargeTreeCorrectness(t *testing.T) {
 	tr := NewTreeLayer[int, int]()
 
 	var entries []Executor[int, int]
+
 	n := 200
 
 	for i := 0; i < n; i++ {
@@ -702,6 +746,7 @@ func TestLargeTreeCorrectness(t *testing.T) {
 	}
 
 	var count atomic.Int64
+
 	tr.Execute(context.Background(), func(_ context.Context, _ int, _ int) {
 		count.Add(1)
 	})
@@ -772,6 +817,7 @@ func BenchmarkTree4by100(b *testing.B) {
 	}
 
 	b.StartTimer()
+
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
 			tr.Execute(context.Background(), func(_ context.Context, _ string, _ any) {})
