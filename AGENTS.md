@@ -45,6 +45,10 @@ make ci                # lint + coverage
 - Coverage must stay >= 90% (enforced by `.testcoverage.yml`)
 - `benchmarks/baseline.txt` is committed; `benchmarks/current.txt` is gitignored
 
+## Usage pattern
+
+**Build once, execute many.** The primary use case is calling `Add()` one or more times during initialization, then calling `Execute()` concurrently from many goroutines at runtime (1000+ TPS). `Retrieve()` is a public API for external consumers — `Execute()` iterates `layer.Nodes` directly (no channels).
+
 ## Performance notes
 
 - `Execute()` uses direct goroutine spawning (no channels) — one goroutine per async node, sync nodes run inline in caller (zero-alloc per layer for sync-only layers)
