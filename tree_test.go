@@ -3,6 +3,7 @@ package ltree
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 	"sync"
@@ -41,6 +42,31 @@ func (s *SafeSet[K]) Len() int {
 	defer s.mu.Unlock()
 
 	return len(s.data)
+}
+
+func TestTreeBreak(t *testing.T) {
+	tr := NewTreeLayer[string, any]()
+
+	err := tr.Add(
+		NewEntry[string, any]("test", "max", []string{}, false, nil),                // 0
+		NewEntry[string, any]("abc2", "max", []string{"test"}, false, nil),          // 1
+		NewEntry[string, any]("test2", "max", []string{"abc"}, true, nil),           // 1
+		NewEntry[string, any]("test3", "max", []string{"abc", "abc2"}, true, nil),   // 2
+		NewEntry[string, any]("test4", "max", []string{"test3"}, true, nil),         // 3
+		NewEntry[string, any]("test5", "max", []string{"test3", "abc2"}, true, nil), // 4
+		NewEntry[string, any]("abc", "max", []string{}, false, nil),                 // 0
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ctx := context.TODO()
+
+	fmt.Println(tr.GetPretty())
+
+	tr.Execute(ctx, func(_ context.Context, _ string, _ any) {
+		time.Sleep(10 * time.Millisecond)
+	})
 }
 
 func TestTreeExecution(t *testing.T) {
