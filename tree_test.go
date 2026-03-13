@@ -3,7 +3,6 @@ package ltree
 import (
 	"context"
 	"errors"
-	"fmt"
 	"strconv"
 	"strings"
 	"sync"
@@ -62,7 +61,7 @@ func TestTreeBreak(t *testing.T) {
 
 	ctx := context.TODO()
 
-	fmt.Println(tr.GetPretty())
+	t.Log(tr.GetPretty())
 
 	tr.Execute(ctx, func(_ context.Context, _ string, _ any) {
 		time.Sleep(10 * time.Millisecond)
